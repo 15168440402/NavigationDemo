@@ -1,0 +1,31 @@
+﻿@foreach (var menu in Menus)
+{
+    if (menu.Childrens.Count == 0)
+    {
+        <MListItem IsActive="menu.Actived" OnClick="async () => await OnClick.InvokeAsync(menu)">
+            <MListItemIcon>
+                <MIcon>@menu.Icon</MIcon>
+            </MListItemIcon>
+            <MListItemTitle>@menu.Title</MListItemTitle>
+        </MListItem>
+    }
+    else
+    {
+        <MListGroup PrependIcon="@menu.Icon" ValueChanged="async (value) => await OnClick.InvokeAsync(menu)">
+            <ActivatorContent>
+                <MListItemTitle>@menu.Title</MListItemTitle>
+            </ActivatorContent>
+            <ChildContent>
+                <MenuView OnClick=OnClick Menus="@menu.Childrens" />
+            </ChildContent>
+        </MListGroup>
+    }
+}
+
+@code {
+    [Parameter]
+    public List<Menu> Menus { get; set; }
+
+    [Parameter]
+    public EventCallback<Menu> OnClick { get; set; }
+}

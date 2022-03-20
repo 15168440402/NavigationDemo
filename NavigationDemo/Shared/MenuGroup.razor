@@ -1,0 +1,28 @@
+﻿@foreach (var menu in Menus)
+{
+    if (menu.Childrens.Count == 0)
+    {
+        <MListItem Href=@menu.Href>
+            <MListItemIcon>
+                <MIcon>@menu.Icon</MIcon>
+            </MListItemIcon>
+            <MListItemTitle>@menu.Title</MListItemTitle>
+        </MListItem>
+    }
+    else
+    {
+        <MListGroup PrependIcon="@menu.Icon">
+            <ActivatorContent>
+                <MListItemTitle>@menu.Title</MListItemTitle>
+            </ActivatorContent>
+            <ChildContent>
+                <MenuGroup Menus="@menu.Childrens" />
+            </ChildContent>
+        </MListGroup>
+    }
+}
+
+@code {
+    [Parameter]
+    public List<Menu> Menus { get; set; }
+}

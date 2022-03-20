@@ -1,0 +1,159 @@
+﻿@page "/menus"
+@inherits DemoCompontentBase;
+@inject MenuService MenuService
+
+<div class="d-flex">
+    <MNavigationDrawer Class="navigation py-4 rounded-4" Width=410 Style="min-height:800px">
+        <MList Nav Dense Class="pa-0">
+            <MenuView  Menus="RecursionMenus" OnClick=SetCurentMenu />
+        </MList>
+        <div class="mt-5" style="text-align:center;">
+            @if (CurrentMenu is not null)
+            {
+                <MButton Color="primary" Class="mt-6 ml-2" OnClick="()=> AddDefaultMenu(false)">
+                    添加子菜单
+                </MButton>
+                <MButton Color="error" Class="mt-6 ml-2" OnClick="()=> OpenDeleteMenuDialog(CurrentMenu)">
+                    删除菜单
+                </MButton>
+            }
+            <br />
+            <MButton Color="primary" Class="mt-6" OnClick="()=> AddDefaultMenu(true)">
+                添加一级菜单
+            </MButton>
+        </div>
+    </MNavigationDrawer>
+     @if (CurrentMenu.Id != Guid.Empty)
+     {
+        <MCard Class="max-width ml-8">
+            <MCardText>
+                <MForm Model=CurrentMenu EnableDataAnnotationsValidation>
+               
+                        <MRow>
+                            <MCol>
+                                <MTextField @bind-Value="CurrentMenu.Title" Class="mb-6" Label="Title" HideDetails="@("auto")" Outlined />
+                            </MCol>
+                            <MCol>
+                                <MTextField @bind-Value="CurrentMenu.Icon" Class="mb-6" Label="Icon" HideDetails="@("auto")" Outlined />
+                            </MCol>
+                        </MRow>
+                        <MRow>
+                            <MCol>
+                                <MTextField @bind-Value="CurrentMenu.Href" Class="mb-6" Label="Url" HideDetails="@("auto")" Outlined />
+                            </MCol>
+                            <MCol>
+                                <MTextField @bind-Value="CurrentMenu.Sort" Class="mb-6" Label="Sort" HideDetails="@("auto")" Outlined />
+                            </MCol>
+                        </MRow>
+
+                        <MButton Color="primary" Class="mt-6" OnClick="async () => await EditData(context)">
+                            保存
+                        </MButton>
+               
+                </MForm>
+            </MCardText>
+        </MCard>
+     }
+</div>
+@code {
+
+    public List<Menu> Menus { get; set; } = new();
+
+    public List<Menu> RecursionMenus { get; set; } = new();
+
+    public Menu CurrentMenu { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetMenusAsync();
+    }
+
+    public async Task GetMenusAsync()
+    {
+        Loading = true;
+        Menus = await MenuService.GetMenusAsync();
+        RecursionMenus = BuidRecursionMenus(Menus);
+        Loading = false;
+    }
+
+    public void OpenDeleteMenuDialog(Menu menu)
+    {
+        OpenConfirmDialog(async confirm =>
+        {
+            if (confirm)
+            {
+                Loading = true;
+                await MenuService.RemoveMenuAsync(menu);
+                await GetMenusAsync();
+                var firstLevelMenus = Menus.Where(m => m.ParentId == CurrentMenu.ParentId).OrderByDescending(m => m.Sort);
+                var frontMenu = firstLevelMenus.FirstOrDefault(m => m.Sort <= CurrentMenu.Sort);
+                var activeMenu= frontMenu ?? firstLevelMenus.LastOrDefault(m => m.Sort >= CurrentMenu.Sort) ?? Menus.FirstOrDefault(m => m.Id == CurrentMenu.ParentId) ?? new();
+                SetCurentMenu(activeMenu);
+                OpenSuccessMessage("删除菜单数据成功");            
+                Loading = false;
+            }
+        }, "确定删除菜单？");
+    }
+
+    public async Task AddDefaultMenu(bool firstLevel)
+    {
+        int sort = CurrentMenu.Sort + 1;
+        Guid? parentId = firstLevel ? null : CurrentMenu.Id;
+        var childDatas = Menus.Where(m => m.ParentId == parentId);
+        if (childDatas.Count() > 0)
+        {
+            sort = childDatas.Max(m => m.Sort) + 1;
+        }
+        Loading = true;
+        var menu = new Menu($"{(firstLevel ? "Default Menu" : CurrentMenu.Title)}_{sort}", "", firstLevel ? "mdi-file-outline" : "", sort, parentId);     
+        await MenuService.AddMenuAsync(menu);
+        if(firstLevel)SetCurentMenu(menu);
+        OpenSuccessMessage("添加菜单成功");
+        await GetMenusAsync();
+        Loading = false;
+    }
+
+    private async Task EditData(EditContext context)
+    {
+        if (context.Validate())
+        {
+            Loading = true;
+            await MenuService.UpdateMenuAsync(CurrentMenu);
+            OpenSuccessMessage("修改菜单数据成功");
+            await GetMenusAsync();
+            Loading = false;
+        }
+    }
+
+    void SetCurentMenu(Menu menu)
+    {
+        Menus.ForEach(m => m.Actived = false);
+        menu.Actived = true;
+        CurrentMenu = menu;
+    }
+
+    List<Menu> BuidRecursionMenus(List<Menu> allMenus)
+    {
+        var menus = new List<Menu>();
+        menus.AddRange(allMenus.Where(m => m.ParentId is null));
+        foreach (var menu in menus)
+        {
+            BindChildren(menu);
+        }
+
+        return menus;
+
+        void BindChildren(Menu menu)
+        {
+            var childrens = allMenus.Where(m => m.ParentId == menu.Id).ToList();
+            menu.Childrens = childrens;
+            if (childrens.Count() > 0)
+            {
+                foreach (var children in childrens)
+                {
+                    BindChildren(children);
+                }
+            }
+        }
+    }
+}

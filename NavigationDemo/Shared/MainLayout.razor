@@ -1,0 +1,61 @@
+﻿@inherits LayoutComponentBase
+@inject MenuService MenuService
+
+<MApp>
+    <MAppBar Flat Fixed Color="white" Class="m-bar--underline">
+        <span>Masa.Framework</span>
+        <MSpacer></MSpacer>
+        <MButton Text>
+            <a href="https://blazor.Masastack.com/">About</a>
+        </MButton>
+    </MAppBar>
+    <MNavigationDrawer Class="mt-16"  App>
+        <MList Dense>
+            <MenuGroup Menus=Menus />
+        </MList>
+    </MNavigationDrawer>
+    <MMain Class="mt-16">
+        <MContainer Fluid>
+                @Body
+        </MContainer>
+    </MMain>
+
+    <MLoading />
+    <MConfirmDialog />
+    <MMessage />
+</MApp>
+
+@code{
+    public List<Menu> Menus { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var menus = await MenuService.GetMenusAsync();
+        Menus = BuidRecursionMenus(menus);
+    }
+
+    List<Menu> BuidRecursionMenus(List<Menu> allMenus)
+    {
+        var menus = new List<Menu>();
+        menus.AddRange(allMenus.Where(m => m.ParentId is null));
+        foreach (var menu in menus)
+        {
+            BindChildren(menu);
+        }
+
+        return menus;
+
+        void BindChildren(Menu menu)
+        {
+            var childrens = allMenus.Where(m => m.ParentId == menu.Id).ToList();
+            menu.Childrens = childrens;
+            if (childrens.Count() > 0)
+            {
+                foreach (var children in childrens)
+                {
+                    BindChildren(children);
+                }
+            }
+        }
+    }
+}
